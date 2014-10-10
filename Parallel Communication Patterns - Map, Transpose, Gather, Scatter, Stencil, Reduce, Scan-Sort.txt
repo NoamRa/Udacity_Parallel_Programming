@@ -1,0 +1,11 @@
+Conceptually map and transpose are 1-to-1. Each input maps to a single unique output.
+
+You can think of a gather operation as many-to-1. Many possible inputs can be chosen to compute an output.
+
+scatter is 1-to-many, so each thread chooses from many possible output destinations.
+
+Stencil can be seen as a specialized gather that pulls output from a select few inputs
+in a given neighborhood of the output.  So you might turn that to several-to-1.
+
+scan and sort can be considered all-to-all because
+all of the input can affect the destination of the resulting output.
