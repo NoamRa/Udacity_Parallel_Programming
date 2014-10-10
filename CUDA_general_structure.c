@@ -7,7 +7,7 @@
 __global__
 // global memory. as opposed to __shared__ and __local__.
 
-void main_program_name(const uchar4* const rgbaImage,
+void kernel_name(const uchar4* const rgbaImage,
                        unsigned char* const greyImage,
                        int numRows, int numCols)
 {
@@ -41,7 +41,7 @@ void main_program_name(const uchar4* const rgbaImage,
 
 
 
-void your_rgba_to_greyscale(const uchar4 * const h_rgbaImage, uchar4 * const d_rgbaImage,
+void main_program_name(const uchar4 * const h_rgbaImage, uchar4 * const d_rgbaImage,
                             unsigned char* const d_greyImage, size_t numRows, size_t numCols)
     
 // dim3 is a struct of 3 intergers that defines an array of up to 3 dimentions,
@@ -52,7 +52,7 @@ void your_rgba_to_greyscale(const uchar4 * const h_rgbaImage, uchar4 * const d_r
 {
   const dim3 blockSize(numRows, 1, 1);  
   const dim3 gridSize(1, numCols, 1);  
-  main_program_name<<<gridSize, blockSize>>>(d_rgbaImage, d_greyImage, numRows, numCols);
+  kernel_name<<<gridSize, blockSize>>>(d_rgbaImage, d_greyImage, numRows, numCols);
   // the main_program_name<<<gridSize, blockSize>>>(...) header takes the number of grids and blocks
   // in the <<<>>> area and otherwise the same as the declaration at the top.
   // This will run the function at the top block x threads times.
