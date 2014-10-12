@@ -28,6 +28,8 @@ void kernel_name(const uchar4* const rgbaImage,
 
     // globalIdx = (blockId * threadsPerBlock) + threadIdx.x + (threadIdx.y * blockDim.x)
 
+  // also consult this page -
+  // http://www.martinpeniak.com/index.php?view=article&catid=17&id=288:cuda-thread-indexing-explained
 
   // In this example every thread is calculates the grey intensity of a pixel 
   // from the RGB values, disregarding the alpha.
