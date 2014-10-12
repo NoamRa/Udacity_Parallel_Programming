@@ -123,6 +123,8 @@ const float* const filter, const int filterWidth)
 	// {
 	//     return;
 	// }
+	
+	/*
 	int abs_loc_x = blockIdx.x + threadIdx.x;
 	int abs_loc_y = blockIdx.y + threadIdx.y;
 	if (abs_loc_x >= numCols ||
@@ -130,40 +132,84 @@ const float* const filter, const int filterWidth)
 	{
 		return;
 	}
+	*/
+	const int2 thread_2D_pos = make_int2(blockIdx.x * blockDim.x + threadIdx.x,
+	blockIdx.y * blockDim.y + threadIdx.y);
+
+	const int thread_1D_pos = thread_2D_pos.y * numCols + thread_2D_pos.x;
+
+	//make sure we don't try and access memory outside the image
+	//by having any threads mapped there return early
+	if (thread_2D_pos.x >= numCols || thread_2D_pos.y >= numRows)
+		return;
+
 	// NOTE: If a thread's absolute position 2D position is within the image, but some of
 	// its neighbors are outside the image, then you will need to be extra careful. Instead
 	// of trying to read such a neighbor value from GPU memory (which won't work because
 	// the value is out of bounds), you should explicitly clamp the neighbor values you read
 	// to be within the bounds of the image. If this is not clear to you, then please refer
 	// to sequential reference solution for the exact clamping semantics you should follow.
-	int abs_loc_i = abs_loc_x * numCols + abs_loc_y;
-	int blurred;
-	float f, f_plus, f_minus, f_row_up, f_row_down;
+	
 
-	f = abs_loc_i * *filter;
-	if (abs_loc_i + 1 <= abs_loc_x){ 
-		f_plus = (abs_loc_i + 1) * *filter; 
+	//float f, f_plus, f_minus, f_row_up, f_row_down;
+	//float filt = *filter + 0.2;
+	//float v = inputChannel[abs_loc_i];
+
+	//f = inputChannel[abs_loc_i] * filt;
+	/*
+	if (thread_2D_pos.x + 1 <= numCols){ 
+		f_plus = inputChannel[(abs_loc_i + 1)] * filt; 
 	}
 	else { f_plus = f; }
 
-	if (abs_loc_i - 1 >= abs_loc_x){ 
-		f_minus = (abs_loc_i + 1) * *filter; 
+	if (thread_2D_pos.x - 1 >= 0){ 
+		f_minus = inputChannel[(abs_loc_i - 1)] * filt; 
 	}
 	else { f_minus = f; }
-
-	if (abs_loc_i + 1 <= abs_loc_y){ 
-		f_row_up = (abs_loc_i + 1) * *filter; 
+	
+	if (thread_2D_pos.y + 1 <= numRows){ 
+		f_row_up = inputChannel[(abs_loc_i + numCols)] * filt; 
 	}
 	else { f_row_up = f; }
 
-	if (abs_loc_i + 1 >= abs_loc_y){ 
-		f_row_down = (abs_loc_i + 1) * *filter; 
+	if (thread_2D_pos.y - 1 >= 0){ 
+		f_row_down = inputChannel[(abs_loc_i - numCols)] * filt; 
 	}
 	else { f_row_down = f; }
+	*/
+	assert(filterWidth % 2 == 1);
+	
+	int abs_loc_i = thread_1D_pos;
+	int abs_loc_x = thread_2D_pos.x;
+	int abs_loc_y = thread_2D_pos.y;
+	
+	float blurred = 0.f;
 
-	blurred = f + f_plus + f_minus + f_row_down + f_row_up;
+	float halfWidth = filterWidth / 2;
 
+	for (int row = -halfWidth ; row <= halfWidth ; ++row)
+	{
+		for (int col = -halfWidth ; col <= halfWidth ; ++col)
+		{
+			int neighborRow = min(numRows - 1, max(0, abs_loc_y + row));
+			int neighborCol = min(numCols - 1, max(0, abs_loc_x + col));
+			int neighbor_i = neighborRow * numCols + neighborCol;
+			
+			float neighbor = static_cast<float>(inputChannel[neighbor_i]);
+
+			int filter_pos = (row + halfWidth) * filterWidth + col + halfWidth;
+			float filter_val = filter[filter_pos];
+			
+			blurred += filter_val * neighbor;
+		}
+	}
+
+
+	//blurred = f + f_plus + f_minus + f_row_down + f_row_up;
+	//blurred = f;
 	outputChannel[abs_loc_i] = blurred;
+	
+	// outputChannel[thread_1D_pos] = inputChannel[thread_1D_pos];
 
 }
 
@@ -188,7 +234,7 @@ unsigned char* const blueChannel)
 	// {
 	//     return;
 	// }
-
+	/*
 	int abs_loc_x = blockIdx.x + threadIdx.x;
 	int abs_loc_y = blockIdx.y + threadIdx.y;
 	if (abs_loc_x >= numCols ||
@@ -196,12 +242,23 @@ unsigned char* const blueChannel)
 	{
 		return;
 	}
+	*/
 
-	int i = abs_loc_x * numCols + abs_loc_y;
+	const int2 thread_2D_pos = make_int2(blockIdx.x * blockDim.x + threadIdx.x,
+		blockIdx.y * blockDim.y + threadIdx.y);
+
+	const int thread_1D_pos = thread_2D_pos.y * numCols + thread_2D_pos.x;
+
+	//make sure we don't try and access memory outside the image
+	//by having any threads mapped there return early
+	if (thread_2D_pos.x >= numCols || thread_2D_pos.y >= numRows)
+		return;
+
+	int i = thread_1D_pos;
 	uchar4 rgba = inputImageRGBA[i];
-	if (i % 3 == 0) {blueChannel[i] = rgba.z;}
-	if (i % 2 == 0) {greenChannel[i] = rgba.y;}
-	if (i % 1 == 0) {redChannel[i] = rgba.x;}
+	if (i % 2 == 0) {blueChannel[i]  = rgba.z;}
+	if (i % 1 == 0) {greenChannel[i] = rgba.y;}
+	if (i % 0 == 0) {redChannel[i]   = rgba.x;}
 }
 
 //This kernel takes in three color channels and recombines them
@@ -225,9 +282,9 @@ int numCols)
 	if (thread_2D_pos.x >= numCols || thread_2D_pos.y >= numRows)
 		return;
 
-	unsigned char red = redChannel[thread_1D_pos];
+	unsigned char red   = redChannel[thread_1D_pos];
 	unsigned char green = greenChannel[thread_1D_pos];
-	unsigned char blue = blueChannel[thread_1D_pos];
+	unsigned char blue  = blueChannel[thread_1D_pos];
 
 	//Alpha should be 255 for no transparency
 	uchar4 outputPixel = make_uchar4(red, green, blue, 255);
@@ -244,9 +301,9 @@ void allocateMemoryAndCopyToGPU(const size_t numRowsImage, const size_t numColsI
 
 	//allocate memory for the three different channels
 	//original
-	checkCudaErrors(cudaMalloc(&d_red, sizeof(unsigned char)* numRowsImage * numColsImage));
+	checkCudaErrors(cudaMalloc(&d_red,   sizeof(unsigned char)* numRowsImage * numColsImage));
 	checkCudaErrors(cudaMalloc(&d_green, sizeof(unsigned char)* numRowsImage * numColsImage));
-	checkCudaErrors(cudaMalloc(&d_blue, sizeof(unsigned char)* numRowsImage * numColsImage));
+	checkCudaErrors(cudaMalloc(&d_blue,  sizeof(unsigned char)* numRowsImage * numColsImage));
 
 	//TODO:
 	//Allocate memory for the filter on the GPU
@@ -272,12 +329,13 @@ void your_gaussian_blur(const uchar4 * const h_inputImageRGBA, uchar4 * const d_
 	const int filterWidth)
 {
 	//TODO: Set reasonable block size (i.e., number of threads per block)
-	const dim3 blockSize(numRows, 1, 1);
+	const dim3 blockSize(32, 32, 1);
 
 	//TODO:
 	//Compute correct grid size (i.e., number of blocks per kernel launch)
 	//from the image size and and block size.
-	const dim3 gridSize(1, numCols, 1);
+
+	const dim3 gridSize(numRows , numCols, 1);
 
 	//TODO: Launch a kernel for separating the RGBA image into different color channels
 	separateChannels<<<gridSize, blockSize>>>(d_inputImageRGBA, numRows, numCols, 
